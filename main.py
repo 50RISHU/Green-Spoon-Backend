@@ -141,5 +141,32 @@ def get_all_recipe():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/get_my_recipe", methods = ['GET'])
+@token_required
+def get_my_recipe(user_id):
+    try:
+        recipes = supabase.table("recipe").select("*").eq("created_by", user_id).execute()
+        if not recipes.data:
+            return jsonify({"message": "No recipes Yet."}), 200
+        return jsonify({"recipes" : recipes.data}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/save_recipe", methods=["POST"])
+@token_required
+def save_recipe(user_id):
+    data = request.json
+    recipe_id = data.get("recipe_id")
+
+    if not recipe_id:
+        return jsonify({"error": "Recipe ID is required"}), 400
+
+    try:
+        supabase.table("savedrecipe").insert({"user_id": user_id, "recipe_id": recipe_id}).execute()
+        return jsonify({"message": "Recipe saved successfully."}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     app.run(debug=True)
