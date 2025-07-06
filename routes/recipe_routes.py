@@ -58,13 +58,38 @@ def get_recipe():
         return jsonify({"error": str(e)}), 500
 
 
-@recipe_bp.route("/api/get_all_recipe", methods = ['GET'])
+
+@recipe_bp.route("/api/get_all_recipe", methods=['GET'])
 def get_all_recipe():
     try:
-        recipes = supabase.table("recipe").select("*").execute()
-        return jsonify({"recipes": recipes.data}), 200
+        response = supabase.table("recipe").select("""
+            *,
+            User:created_by (
+                id,
+                name,
+                username
+            ),
+            comment (
+                id,
+                comment,
+                created_at,
+                user_id,
+                User (
+                    id,
+                    name,
+                    username,
+                    profile_picture_url
+                )
+            )
+        """).execute()
+
+        return jsonify({"recipes": response.data}), 200
+
     except Exception as e:
+        print("Error in get_all_recipe:", e)
         return jsonify({"error": str(e)}), 500
+
+
 
 
 @recipe_bp.route("/api/get_my_recipe", methods = ['GET'])
@@ -93,6 +118,43 @@ def save_recipe(user_id):
         return jsonify({"message": "Recipe saved successfully."}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@recipe_bp.route("/api/get_save_recipe", methods=['GET'])
+@token_required
+def get_saved_recipes(user_id):
+    try:
+        # Step 1: Get list of saved recipe IDs by the user
+        saved_entries = supabase.table("savedrecipe").select("recipe_id").eq("user_id", user_id).execute()
+        recipe_ids = [entry["recipe_id"] for entry in saved_entries.data]
+        print(recipe_ids)
+
+        if not recipe_ids:
+            return jsonify({"recipes": []}), 200
+
+        # Step 2: Fetch full recipe data + User info + Comments + Comment User info
+        all_recipes = []
+        for recipe_id in recipe_ids:
+            recipe = (
+                supabase
+                .table("recipe")
+                .select("*, User(id, name, username), comment(*, User(id, name, username))")
+                .eq("id", recipe_id)
+                .limit(1)
+                .execute()
+            )
+            if recipe.data:
+                all_recipes.append(recipe.data[0])
+
+        print(all_recipes)
+
+        return jsonify({"recipes": all_recipes}), 200
+
+    except Exception as e:
+        return jsonify({
+            "error": "Failed to fetch saved recipes",
+            "details": str(e)
+        }), 500
 
 
 @recipe_bp.route("/api/update_recipe", methods = ['POST'])

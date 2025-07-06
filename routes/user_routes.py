@@ -32,10 +32,20 @@ def setup_supabase():
 @user_bp.route("/api/profile", methods = ['GET'])
 @token_required
 def profile(user_id):
-    user = supabase.table("User").select("*").eq("id", user_id).execute()
-    if not user.data:
-        return jsonify({"error": "User not found"}), 404
-    return jsonify({"user": user.data[0]}), 200
+    try:
+        user = supabase.table("User").select("*").eq("id", user_id).execute()
+        if not user.data:
+            return jsonify({"error": "User not found"}), 404
+
+        created_recipe = supabase.table("recipe").select("id").eq("created_by", user_id).execute() or 0
+        total_recipe = len(created_recipe.data) or 0
+
+        saved_recipe = supabase.table("savedrecipe").select("id").eq("user_id", user_id).execute() or 0
+        total_saved = len(saved_recipe.data) or 0
+
+        return jsonify({"user": user.data[0], "total_recipes": total_recipe, "total_saved": total_saved}), 200
+    except Exception as e:
+        return jsonify({"error": "Failed to retrieve user profile", "details": str(e)}), 500
 
 
 @user_bp.route("/api/upload_profile_pic", methods = ['POST'])

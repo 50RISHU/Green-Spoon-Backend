@@ -23,21 +23,22 @@ def create_comment(user_id):
         return jsonify({"error": "Recipe ID and content are required"}), 400
 
     try:
-        supabase.table("comments").insert({"user_id": user_id, "recipe_id": recipe_id, "content": content}).execute()
+        supabase.table("comment").insert({"user_id": user_id, "recipe_id": recipe_id, "comment": content}).execute()
         return jsonify({"message": "Comment created successfully."}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@comment_bp.route("/api/get_comments", methods=["GET"])
-@token_required
-def get_comments(user_id):
-    recipe_id = request.args.get("recipe_id")
 
-    if not recipe_id:
-        return jsonify({"error": "Recipe ID is required"}), 400
+# @comment_bp.route("/api/get_comments", methods=["GET"])
+# @token_required
+# def get_comments(user_id):
+#     recipe_id = request.args.get("recipe_id")
 
-    try:
-        comments = supabase.table("comments").select("*").eq("recipe_id", recipe_id).execute()
-        return jsonify({"comments": comments.data}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+#     if not recipe_id:
+#         return jsonify({"error": "Recipe ID is required"}), 400
+
+#     try:
+#         comments = supabase.table("comments").select("*").eq("recipe_id", recipe_id).execute()
+#         return jsonify({"comments": comments.data}), 200
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
