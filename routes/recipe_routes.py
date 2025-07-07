@@ -1,9 +1,24 @@
 from flask import Blueprint, jsonify, current_app, request
 from utils.token_required import token_required
+import cloudinary
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 recipe_bp = Blueprint("recipe", __name__)
 supabase = None
 
+cloudinary.config( 
+    cloud_name = 'debavxk5u', 
+    api_key = "866567667338892", 
+    api_secret = "PM94gFU49JWg9xq2R2S4zgkUD3Q", 
+    secure=True
+)
+
+print(cloudinary.config().cloud_name)  # should print your cloud_name
+print(cloudinary.config().api_key)     # should print your API key
+print(cloudinary.config().api_secret)
 
 @recipe_bp.before_app_request
 def setup_supabase():
@@ -15,15 +30,21 @@ def setup_supabase():
 @recipe_bp.route("/api/create_recipe", methods = ['POST'])
 @token_required
 def create_recipe(user_id):
-    data = request.json
-    title = data.get("title")
-    ingredients = data.get("ingredients")
-    description = data.get("description")
-    instructions = data.get("instructions")
-    is_ai_generated = data.get("is_ai_generated", False)
+    title = request.form.get("title")
+    ingredients = request.form.get("ingredients")
+    description = request.form.get("description")
+    instructions = request.form.get("instructions")
+    is_ai_generated = request.form.get("is_ai_generated", "false").lower() == "true"
 
     if not title or not ingredients or not instructions:
         return jsonify({"error": "All fields are required"}), 400
+
+    image = request.files.get("image")
+    image_url = None
+
+    if image:
+        upload_result = cloudinary.uploader.upload(image, folder="recipe_images")
+        image_url = upload_result.get("secure_url")
 
     try:
         recipe_data = {
@@ -32,6 +53,7 @@ def create_recipe(user_id):
             "ingredients": ingredients,
             "description": description,
             "instructions": instructions,
+            "recipe_image_url": image_url,
             "is_ai_generated": is_ai_generated
         }
         supabase.table("recipe").insert(recipe_data).execute()
@@ -40,20 +62,38 @@ def create_recipe(user_id):
         return jsonify({"error": str(e)}), 500
 
 
-@recipe_bp.route("/api/get_recipe", methods = ['GET', 'POST'])
-def get_recipe():
-    data = request.json
-    recipe_id = data.get("recipe_id")
-
+@recipe_bp.route("/api/get_recipe/<string:recipe_id>", methods = ['GET'])
+def get_recipe(recipe_id):
     if not recipe_id:
         return jsonify({"error": "Recipe ID is required"}), 400
 
     try:
-        recipe = supabase.table("recipe").select("*").eq("id", recipe_id).execute()
+        recipe = supabase.table("recipe").select("""
+            *,
+            User:created_by (
+                id,
+                name,
+                username,
+                profile_picture_url
+            ),
+            comment (
+                id,
+                comment,
+                created_at,
+                user_id,
+                User (
+                    id,
+                    name,
+                    username,
+                    profile_picture_url
+                )
+            )
+        """).eq("id", recipe_id).execute()
+
         if not recipe.data:
             return jsonify({"error": "Recipe not found"}), 404
 
-        return jsonify({"recipe": recipe.data[0]}), 200
+        return jsonify({"recipe": recipe.data}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

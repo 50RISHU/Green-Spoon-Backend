@@ -4,6 +4,7 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 import os
 import cloudinary
+import cloudinary.uploader
 
 load_dotenv()
 
@@ -11,11 +12,15 @@ user_bp = Blueprint("user", __name__)
 supabase = None
 
 cloudinary.config( 
-    cloud_name = os.getenv("CLOUD_NAME"), 
-    api_key = os.getenv("CLOUD_API_KEY"), 
-    api_secret = os.getenv("CLOUD_API_SECRET"), 
+    cloud_name = 'debavxk5u', 
+    api_key = "866567667338892", 
+    api_secret = "PM94gFU49JWg9xq2R2S4zgkUD3Q", 
     secure=True
 )
+
+print(cloudinary.config().cloud_name)  # should print your cloud_name
+print(cloudinary.config().api_key)     # should print your API key
+print(cloudinary.config().api_secret)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
@@ -48,56 +53,46 @@ def profile(user_id):
         return jsonify({"error": "Failed to retrieve user profile", "details": str(e)}), 500
 
 
-@user_bp.route("/api/upload_profile_pic", methods = ['POST'])
+@user_bp.route("/api/update_profile", methods=["PUT"])
 @token_required
-def upload_profile_pic(user_id):
+def update_profile(user_id):
+    # Fetch form fields
+    name = request.form.get("name")
+    new_password = request.form.get("new_password")
+    username = request.form.get("username")
     profile_pic = request.files.get("profile_pic")
-    if not profile_pic:
-        return jsonify({"error": "No file uploaded"}), 400
+    image_url = None
+
+    if not name:
+        return jsonify({"error": "Name is required"}), 400
+
 
     try:
-        # Upload to Cloudinary
-        upload_result = cloudinary.uploader.upload(profile_pic)
-        image_url = upload_result.get("secure_url")
+        # 1. Upload profile picture if provided
+        if profile_pic:
+            upload_result = cloudinary.uploader.upload(profile_pic, folder="profile_pics")
+            image_url = upload_result.get("secure_url")
+            supabase.table("User").update({"profile_picture_url": image_url}).eq("id", user_id).execute()
 
-        # Update user profile in Supabase
-        supabase.table("User").update({"profile_picture_url": image_url}).eq("id", user_id).execute()
-        return jsonify({"message": "Profile picture uploaded successfully.", "url": image_url}), 200
+        # 2. Update user in Supabase
+        supabase.table("User").update({"name": name, "username": username}).eq("id", user_id).execute()
+
+        # 3. If new password provided, update it using Admin API
+        if new_password:
+            admin_client: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+            res = admin_client.auth.admin.update_user_by_id(user_id, {"password": new_password})
+            if not res.user:
+                return jsonify({"error": "Password update failed"}), 400
+
+        return jsonify({
+            "message": "Profile updated successfully.",
+            "name": name,
+            "image_url": image_url,
+            "password_updated": bool(new_password)
+        }), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-   
-@user_bp.route("/api/change_password", methods=["POST"])
-@token_required
-def change_password(user_id):
-    data = request.json
-    new_password = data.get("new_password")
-
-    if not new_password:
-        return jsonify({"error": "New password is required"}), 400
-
-    try:
-        # Use service role key for admin operations
-        # This bypasses RLS and allows admin operations
-        admin_client: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-
-        # Update user password using admin client
-        res = admin_client.auth.admin.update_user_by_id(
-            user_id,
-            {"password": new_password}
-        )
-
-        if res.user:
-            return jsonify({
-                "message": "Password changed successfully",
-                "user_id": res.user.id
-            }), 200
-        else:
-            return jsonify({"error": "Password update failed"}), 400
-            
-    except Exception as e:
-        return jsonify({"error": "Failed to change password", "details": str(e)}), 400
-
 
 @user_bp.route("/api/forgot_password", methods=["POST"])
 def forgot_password():
