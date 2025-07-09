@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from flask_cors import CORS
+from utils.token_required import token_required
 from routes.auth_routes import auth_bp
 from routes.recipe_routes import recipe_bp
 from routes.comment_routes import comment_bp
@@ -10,7 +11,8 @@ import os
 
 load_dotenv()
 app = Flask(__name__)
-CORS(app, origins=["https://green-spoon.vercel.app"], supports_credentials=True)
+# CORS(app, origins=["https://green-spoon.vercel.app"], supports_credentials=True)
+CORS(app, origins=["http://localhost:5173"], supports_credentials=True)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
@@ -20,9 +22,6 @@ SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 app.supabase = supabase
 
-from flask import request, jsonify
-from supabase import create_client
-import os
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")  # service role key needed for decoding JWT
@@ -66,6 +65,33 @@ def validate_token():
     except Exception as e:
         print(f"Token validation error: {str(e)}")
         return jsonify({"valid": False, "error": "Token validation failed"}), 401
+
+@app.route("/api/contact", methods = ['POST'])
+@token_required
+def contact(user_id):
+    data = request.json
+    name = data.get("name")
+    email = data.get("email")
+    phone = data.get("phone")
+    message = data.get("message")
+
+    if not email or not message or not name or not phone:
+        return jsonify({"error": "Email, message, name, and phone are required"}), 400
+
+    contact_data = {
+        "user_id": user_id,
+        "name": name,
+        "email": email,
+        "phone": phone,
+        "message": message
+    }
+    try:
+        supabase.table("contact_us").insert(contact_data).execute()
+        print(f"User {user_id} contacted support with message: {message}")
+        return jsonify({"message": "Support request submitted successfully"}), 200
+    except Exception as e:
+        print(f"Error submitting support request: {str(e)}")
+        return jsonify({"error": "Failed to submit support request"}), 500
 
 
 app.register_blueprint(auth_bp)

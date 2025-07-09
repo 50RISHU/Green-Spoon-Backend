@@ -36,6 +36,7 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "requests" },
     { name = "supabase" },
+    { name = "validate-email-address" },
 ]
 
 [package.metadata]
@@ -47,6 +48,7 @@ requires-dist = [
     { name = "python-dotenv", specifier = ">=1.1.1" },
     { name = "requests", specifier = ">=2.32.4" },
     { name = "supabase", specifier = ">=2.16.0" },
+    { name = "validate-email-address", specifier = ">=1" },
 ]
 
 [[package]]
@@ -603,6 +605,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/15/22/9ee70a2574a4f4599
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a7/c2/fe1e52489ae3122415c51f387e221dd0773709bad6c6cdaa599e8a2c5185/urllib3-2.5.0-py3-none-any.whl", hash = "sha256:e6b01673c0fa6a13e374b50871808eb3bf7046c4b125b216f6bf1cc604cff0dc", size = 129795, upload-time = "2025-06-18T14:07:40.39Z" },
 ]
+
+[[package]]
+name = "validate-email-address"
+version = "1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/62/4c/bf53c66bf1a28635a755e943e2fbd0b29db7ebb9ae8fe9e72d3c4b14907b/validate-email-address-1.tar.gz", hash = "sha256:9c00f978fed19d3df368b054292df7e8443761e44d3fadf95ef25499ea980f43", size = 4906, upload-time = "2014-09-04T19:03:56.715Z" }
 
 [[package]]
 name = "websockets"

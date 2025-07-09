@@ -9,16 +9,20 @@ load_dotenv()
 recipe_bp = Blueprint("recipe", __name__)
 supabase = None
 
+cloud_name = os.getenv("CLAUD_NAME")
+api_key = os.getenv("CLAUD_API_KEY")
+api_secret = os.getenv("CLAUD_API_SECRET")
+
+# print(cloud_name)
+# print(api_key)
+# print(api_secret)
+
 cloudinary.config( 
-    cloud_name = 'debavxk5u', 
-    api_key = "866567667338892", 
-    api_secret = "PM94gFU49JWg9xq2R2S4zgkUD3Q", 
+    cloud_name = cloud_name, 
+    api_key = api_key, 
+    api_secret = api_secret, 
     secure=True
 )
-
-print(cloudinary.config().cloud_name)  # should print your cloud_name
-print(cloudinary.config().api_key)     # should print your API key
-print(cloudinary.config().api_secret)
 
 @recipe_bp.before_app_request
 def setup_supabase():
@@ -92,6 +96,8 @@ def get_recipe(recipe_id):
 
         if not recipe.data:
             return jsonify({"error": "Recipe not found"}), 404
+        
+        print(recipe.data)
 
         return jsonify({"recipe": recipe.data}), 200
     except Exception as e:
@@ -197,16 +203,15 @@ def get_saved_recipes(user_id):
         }), 500
 
 
-@recipe_bp.route("/api/update_recipe", methods = ['POST'])
+@recipe_bp.route("/api/update_recipe", methods = ['PUT'])
 @token_required
 def update_recipe(user_id):
-    data = request.json
-    recipe_id = data.get("recipe_id")
-    title = data.get("title")
-    ingredients = data.get("ingredients")
-    description = data.get("description")
-    instructions = data.get("instructions")
-    is_ai_generated = data.get("is_ai_generated", False)
+    recipe_id = request.form.get("recipe_id")
+    title = request.form.get("title")
+    ingredients = request.form.get("ingredients")
+    description = request.form.get("description")
+    instructions = request.form.get("instructions")
+    is_ai_generated = request.form.get("is_ai_generated", False)
 
     if not recipe_id:
         return jsonify({"error": "Recipe ID is required"}), 400
@@ -218,12 +223,20 @@ def update_recipe(user_id):
     if recipe.data[0]["created_by"] != user_id:
         return jsonify({"error": "You are not authorized to update this recipe"}), 403
 
+    image = request.files.get("image")
+    image_url = None
+
+    if image:
+        upload_result = cloudinary.uploader.upload(image, folder="recipe_images")
+        image_url = upload_result.get("secure_url")
+
     try:
         recipe_data = {
             "title": title,
             "ingredients": ingredients,
             "description": description,
             "instructions": instructions,
+            "recipe_image_url": image_url,
             "is_ai_generated": is_ai_generated
         }
         supabase.table("recipe").update(recipe_data).eq("id", recipe_id).execute()

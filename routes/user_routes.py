@@ -11,16 +11,24 @@ load_dotenv()
 user_bp = Blueprint("user", __name__)
 supabase = None
 
+cloud_name = os.getenv("CLAUD_NAME")
+api_key = os.getenv("CLAUD_API_KEY")
+api_secret = os.getenv("CLAUD_API_SECRET")
+
+# print(cloud_name)
+# print(api_key)
+# print(api_secret)
+
 cloudinary.config( 
-    cloud_name = 'debavxk5u', 
-    api_key = "866567667338892", 
-    api_secret = "PM94gFU49JWg9xq2R2S4zgkUD3Q", 
+    cloud_name = cloud_name, 
+    api_key = api_key, 
+    api_secret = api_secret, 
     secure=True
 )
 
-print(cloudinary.config().cloud_name)  # should print your cloud_name
-print(cloudinary.config().api_key)     # should print your API key
-print(cloudinary.config().api_secret)
+# print(cloudinary.config().cloud_name)  # should print your cloud_name
+# print(cloudinary.config().api_key)     # should print your API key
+# print(cloudinary.config().api_secret)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
@@ -93,6 +101,7 @@ def update_profile(user_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @user_bp.route("/api/forgot_password", methods=["POST"])
 def forgot_password():

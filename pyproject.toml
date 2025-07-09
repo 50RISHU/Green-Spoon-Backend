@@ -12,4 +12,5 @@ dependencies = [
     "python-dotenv>=1.1.1",
     "requests>=2.32.4",
     "supabase>=2.16.0",
+    "validate-email-address>=1",
 ]
