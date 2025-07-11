@@ -45,15 +45,24 @@ def login():
     data = request.json
     email = data.get("email")
     password = data.get("password")
+    isAdmin = False
 
     try:
         res = supabase.auth.sign_in_with_password({"email": email, "password": password})
         token = res.session.access_token
+        print(res.user)
         user_id = res.user.id
+
+        user_data = supabase.table("User").select("is_admin").eq("id", user_id).execute()
+
+        if user_data.data:
+            isAdmin = user_data.data[0]["is_admin"]
+
         return jsonify({
             "message": "Login successful.",
             "access_token": token,
-            "user_id": user_id
+            "user_id": user_id,
+            "is_admin": isAdmin
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 401

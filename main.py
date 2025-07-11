@@ -3,6 +3,7 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 from flask_cors import CORS
 from utils.token_required import token_required
+from routes.admin import admin_bp
 from routes.auth_routes import auth_bp
 from routes.recipe_routes import recipe_bp
 from routes.comment_routes import comment_bp
@@ -11,8 +12,8 @@ import os
 
 load_dotenv()
 app = Flask(__name__)
-CORS(app, origins=["https://green-spoon.vercel.app"], supports_credentials=True)
-# CORS(app, origins=["http://localhost:5173"], supports_credentials=True)
+# CORS(app, origins=["https://green-spoon.vercel.app"], supports_credentials=True)
+CORS(app, origins=["http://localhost:5173"], supports_credentials=True)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
@@ -23,10 +24,10 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 app.supabase = supabase
 
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")  # service role key needed for decoding JWT
+# SUPABASE_URL = os.environ.get("SUPABASE_URL")
+# SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")  # service role key needed for decoding JWT
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+# supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 @app.route("/api/validate_token", methods=["GET"])
 def validate_token():
@@ -56,7 +57,8 @@ def validate_token():
                     "email": user_info["email"],
                     "name": user_info["name"],
                     "profile": user_info["profile_picture_url"],
-                    "created_at": user_info["created_at"]
+                    "created_at": user_info["created_at"],
+                    "is_admin": user_info["is_admin"]
                 }
             }), 200
         else:
@@ -93,7 +95,7 @@ def contact(user_id):
         print(f"Error submitting support request: {str(e)}")
         return jsonify({"error": "Failed to submit support request"}), 500
 
-
+app.register_blueprint(admin_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(recipe_bp)
 app.register_blueprint(comment_bp)

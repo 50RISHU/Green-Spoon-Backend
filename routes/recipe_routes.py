@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, current_app, request
+from flask import Blueprint, jsonify, current_app, request, redirect, url_for
 from utils.token_required import token_required
 import cloudinary
 from dotenv import load_dotenv
@@ -110,7 +110,7 @@ def get_all_recipe():
     try:
         response = supabase.table("recipe").select("""
             *,
-            User:created_by (
+            User (
                 id,
                 name,
                 username
@@ -134,8 +134,6 @@ def get_all_recipe():
     except Exception as e:
         print("Error in get_all_recipe:", e)
         return jsonify({"error": str(e)}), 500
-
-
 
 
 @recipe_bp.route("/api/get_my_recipe", methods = ['GET'])
@@ -165,6 +163,21 @@ def save_recipe(user_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@recipe_bp.route("/api/unsave_recipe", methods = ['POST'])
+@token_required
+def unsave_recipe(user_id):
+    data = request.json
+    recipe_id = data.get("recipe_id")
+
+    if not recipe_id:
+        return jsonify({"error": "Recipe ID is required"}), 400
+
+    try:
+        supabase.table("savedrecipe").delete().eq("user_id", user_id).eq("recipe_id", recipe_id).execute()
+        return jsonify({"message": "Recipe unsaved successfully."}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @recipe_bp.route("/api/get_save_recipe", methods=['GET'])
 @token_required
@@ -258,11 +271,69 @@ def delete_recipe(user_id):
     if not recipe.data:
         return jsonify({"error": "Recipe not found"}), 404
 
-    if recipe.data[0]["created_by"] != user_id:
+    user = supabase.table("User").select("is_admin").eq("id", user_id).execute()
+    if recipe.data[0]["created_by"] != user_id and not user.data[0]["is_admin"]:
         return jsonify({"error": "You are not authorized to delete this recipe"}), 403
 
     try:
         supabase.table("recipe").delete().eq("id", recipe_id).execute()
         return jsonify({"message": "Recipe deleted successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@recipe_bp.route("/api/report_recipe/<string:recipe_id>", methods=["POST"])
+@token_required
+def report_recipe(user_id, recipe_id):
+
+    data = request.json
+    reason = data.get("reason")
+
+    if not recipe_id or not reason:
+        return jsonify({"error": "Recipe ID and reason are required"}), 400
+
+    try:
+        supabase.table("report").insert({
+            "recipe_id": recipe_id,
+            "user_id": user_id,
+            "message": reason
+        }).execute()
+        return jsonify({"message": "Recipe reported successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+@recipe_bp.route("/api/search_recipe", methods=["POST","GET"])
+@token_required
+def search_recipe(user_id):
+    data = request.json
+    query = data.get("query")
+
+    if not query:
+        return redirect(url_for("recipe.get_all_recipe"))
+
+    try:
+        recipes = supabase.table("recipe").select("""
+            *,
+            User:created_by (
+                id,
+                name,
+                username
+            ),
+            comment (
+                id,
+                comment,
+                created_at,
+                user_id,
+                User (
+                    id,
+                    name,
+                    username,
+                    profile_picture_url
+                )
+            )
+        """).ilike("title", f"%{query}%").execute()
+        return jsonify({"recipes": recipes.data}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500

@@ -27,3 +27,26 @@ def token_required(f):
 
         return f(user_id, *args, **kwargs)
     return decorated
+
+
+
+def admin_required(f):
+    @wraps(f)
+    def decorated(user_id,*args, **kwargs):
+        global supabase
+        if not supabase:
+            supabase = current_app.supabase
+
+        try:
+            res = supabase.table("User").select("is_admin").eq("id", user_id).execute()
+            print(res.data)
+            if res.data and res.data[0]["is_admin"]:
+                return f(user_id, *args, **kwargs)
+            else:
+                return jsonify({"error": "Admin access required"}), 401
+
+        except Exception as e:
+            print("Auth Error:", e)
+            return jsonify({"error": "Invalid token", "details": str(e)}), 401
+        
+    return decorated

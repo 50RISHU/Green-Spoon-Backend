@@ -112,7 +112,34 @@ def forgot_password():
         return jsonify({"error": "Email is required"}), 400
 
     try:
-        supabase.auth.reset_password_email(email)
+        res = supabase.auth.reset_password_email(email,{
+        "redirect_to": "http://localhost:5173/reset-password",
+    })
+
+        # if res.get('error'):
+        #     return jsonify({"error": res['error']['message']}), 400
+
         return jsonify({"message": "Password reset email sent"}), 200
     except Exception as e:
         return jsonify({"error": "Failed to send reset email", "details": str(e)}), 400
+
+
+@user_bp.route("/api/reset_password", methods = ['POST'])
+@token_required
+def reset_password(user_id):
+    data = request.json
+    new_password = data.get("new_password")
+
+    if not new_password:
+        return jsonify({"error": "New password is required"}), 400
+
+    try:
+        admin_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+        res = admin_client.auth.admin.update_user_by_id(user_id, {"password": new_password})
+
+        if res.user:
+            return jsonify({"message": "Password reset successful!"}), 200
+        else:
+            return jsonify({"error": "Password reset failed."}), 400
+    except Exception as e:
+        return jsonify({"error": f"Something went wrong: {str(e)}"}), 500
