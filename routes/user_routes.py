@@ -113,7 +113,7 @@ def forgot_password():
 
     try:
         res = supabase.auth.reset_password_email(email,{
-        "redirect_to": "http://localhost:5173/reset-password",
+        "redirect_to": "https://green-spoon.vercel.app/reset-password",
     })
 
         # if res.get('error'):
