@@ -12,7 +12,7 @@ import os
 
 load_dotenv()
 app = Flask(__name__)
-CORS(app, origins=["https://green-spoon.vercel.app"], supports_credentials=True)
+CORS(app, origins=["https://green-spoon.vercel.app","http://localhost:5173"], supports_credentials=True)
 # CORS(app, origins=["http://localhost:5173"], supports_credentials=True)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -29,44 +29,43 @@ app.supabase = supabase
 
 # supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-@app.route("/api/validate_token", methods=["GET"])
+@app.route("/api/validate_token", methods=["GET", "OPTIONS"])
 def validate_token():
-    auth_header = request.headers.get("Authorization", "")
-    
-    if not auth_header or not auth_header.startswith("Bearer "):
-        return jsonify({"valid": False, "error": "Missing or invalid authorization header"}), 401
-    
-    token = auth_header.replace("Bearer ", "").strip()
+    if request.method == "OPTIONS":
+        return jsonify({"message": "CORS preflight"}), 200
 
-    if not token:
-        return jsonify({"valid": False, "error": "Token is empty"}), 401
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return jsonify({"valid": False, "error": "Missing or invalid authorization header"}), 401
+
+    token = auth_header.split("Bearer ")[1].strip()
 
     try:
-        # Validate token via Supabase REST API directly
         response = supabase.auth.get_user(token)
         user = response.user
-        user_data = supabase.table("User").select("*").eq("id", user.id).execute()
+        if not user:
+            raise ValueError("Invalid or expired token")
 
-        if user_data.data:
-            user_info = user_data.data[0]
-            print(user_data)
-            return jsonify({
-                "valid": True,
-                "user": {
-                    "id": user_info["id"],
-                    "email": user_info["email"],
-                    "name": user_info["name"],
-                    "profile": user_info["profile_picture_url"],
-                    "created_at": user_info["created_at"],
-                    "is_admin": user_info["is_admin"]
-                }
-            }), 200
-        else:
+        user_data = supabase.table("User").select("*").eq("id", user.id).execute()
+        if not user_data.data:
             return jsonify({"valid": False, "error": "User not found"}), 401
 
+        user_info = user_data.data[0]
+        return jsonify({
+            "valid": True,
+            "user": {
+                "id": user_info["id"],
+                "email": user_info["email"],
+                "name": user_info["name"],
+                "profile": user_info.get("profile_picture_url"),
+                "is_admin": user_info.get("is_admin", False)
+            }
+        }), 200
+
     except Exception as e:
-        print(f"Token validation error: {str(e)}")
+        print(f"Token validation error: {e}")
         return jsonify({"valid": False, "error": "Token validation failed"}), 401
+
 
 @app.route("/api/contact", methods = ['POST'])
 @token_required
