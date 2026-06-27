@@ -94,6 +94,13 @@ def contact(user_id):
         print(f"Error submitting support request: {str(e)}")
         return jsonify({"error": "Failed to submit support request"}), 500
 
+
+# Health check endpoint
+@app.route("/api/health", methods=["GET"])
+def health_check():
+    return jsonify({"status": "ok"}), 200
+
+
 app.register_blueprint(admin_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(recipe_bp)
@@ -102,3 +109,5 @@ app.register_blueprint(user_bp)
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+    
